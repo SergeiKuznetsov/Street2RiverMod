@@ -3,7 +3,7 @@
 // @description     This script create a new river landmark in waze map editor (WME). It transforms the the geometry of a new unsaved street to a polygon.
 // @namespace       https://greasyfork.org/scripts/1879-wme-street-to-river-plus
 // @grant           none
-// @version         16.06.06
+// @version         16.06.08
 // @include         https://www.waze.com/editor/*
 // @include         https://www.waze.com/*/editor/*
 // @include         https://editor-beta.waze.com/*
@@ -23,7 +23,7 @@
 //
 // Updated by: Eduardo Carvajal
 
-var version = '16.06.06';
+var version = '16.06.08';
 
 var idMeters  = 0;
 var idWidth = 1;
@@ -37,31 +37,6 @@ var idMultipleSegmentsInside=7;
 
 function streetToRiver_bootstrap()
 {
-    /*
-    2016-03-30: Romoved for Firefox compatibility
-    var bGreasemonkeyServiceDefined = false;
-
-    try
-    {
-        if ("object" === typeof Components.interfaces.gmIGreasemonkeyService)
-        {
-            bGreasemonkeyServiceDefined = true;
-        }
-    }
-    catch (err)
-    {
-        //Ignore.
-    }
-    if ( "undefined" === typeof unsafeWindow  ||  ! bGreasemonkeyServiceDefined)
-    {
-        unsafeWindow    = ( function ()
-        {
-            var dummyElem   = document.createElement('p');
-            dummyElem.setAttribute ('onclick', 'return window;');
-            return dummyElem.onclick ();
-        } ) ();
-    }
-    */
     /* begin running the code! */
     setTimeout(streetToRiver_init,999);
     //window.setTimeout(streetToRiver_init,500);
@@ -360,7 +335,7 @@ function streetToRiver_init() {
             // 2014-10-08: Creates river's Landmark
             riverLandmark = new wazefeatureVectorLandmark();
             riverLandmark.geometry = polygon;
-            riverLandmark.attributes.categories = ["RIVER_STREAM"];
+            riverLandmark.attributes.categories.push("RIVER_STREAM");
 
             // 2014-01-09: Add river's name base on Street Name
             if (street) {
