@@ -3,10 +3,10 @@
 // @description     This script create a new river landmark in waze map editor (WME). It transforms the the geometry of a new unsaved street to a polygon.
 // @namespace       https://greasyfork.org/scripts/1879-wme-street-to-river-plus
 // @grant           none
-// @version         16.05.12
+// @version         16.07.20
 // @include         https://www.waze.com/editor/*
 // @include         https://www.waze.com/*/editor/*
-// @include         https://editor-beta.waze.com/*
+// @include         https://beta.waze.com/*
 // ==/UserScript==
 
 // Base on WME Street to river
@@ -23,7 +23,7 @@
 //
 // Updated by: Eduardo Carvajal
 
-var version = '16.05.12.mod';
+var version = '16.07.20.mod';
 
 var idMeters  = 0;
 var idWidth = 1;
@@ -949,6 +949,16 @@ console.log("p2="+p2+", dist="+dist);
                 langText = new Array("metros","Largura","Criar uma nova rua, selecione e clique neste botão.","Rua para Rio","Comprimento ilimitado (instável)",
                                      "Nenhuma nova rua, sem salvar, selecionada!","Todos os segmentos de rua estão dentro de um rio. Nada a fazer.",
                                      "Múltiplos segmentos de rua dentro de um rio. Impossível continuar.","Other","Forest","Delete segment");
+                break;
+            case "it":      // 2016-06-06: Italian - By savex67
+                langText = new Array("metri","Larghezza","Crea un nuovo segmento, selezionalo (senza salvarlo) e clicca su questo bottone.","Da strada a fiume","Larghezza illimitata (non usare)",
+                                     "Nessun nuovo segmento (non salvato) selezionato","I segmenti selezionati sono già all'interno di un fiume. Non puoi continuare.",
+                                     "I segmenti selezionati sono in parte già all'interno di un fiume. Non puoi continuare.","Other","Forest","Delete segment");
+                break;
+            case "sk":      // 2016-06-15: Slovak - By Turrican7
+                langText = new Array("metrov","Šírka","Vytvorte os rieky, označte segment a stlačte toto tlačítko.","Cesta na rieku","Neobmedzená šírka (nebezpečné)",
+                                     "Nebol označený žiadny neuložený segment!","Všetky segmenty sú vo vnútri rieky! Nie je možné pokračovať.",
+                                     "Vo vnútri rieky je viacero segmentov! Nie je možné pokračovať.","Other","Forest","Delete segment");
                 break;
             default:        // 2014-06-05: English
                 langText = new Array("meters","Width","Create a new street, select and click this button.","Street to River","Unlimited size (unsafe)",
