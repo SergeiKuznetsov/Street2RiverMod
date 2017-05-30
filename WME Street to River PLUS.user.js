@@ -3,7 +3,7 @@
 // @description     This script create a new river landmark in waze map editor (WME). It transforms the the geometry of a new unsaved street to a polygon.
 // @namespace       https://greasyfork.org/scripts/1879-wme-street-to-river-plus
 // @grant           none
-// @version         16.05.12
+// @version         16.06.06
 // @include         https://www.waze.com/editor/*
 // @include         https://www.waze.com/*/editor/*
 // @include         https://editor-beta.waze.com/*
@@ -23,7 +23,7 @@
 //
 // Updated by: Eduardo Carvajal
 
-var version = '16.05.12';
+var version = '16.06.06';
 
 var idMeters  = 0;
 var idWidth = 1;
@@ -688,6 +688,11 @@ function streetToRiver_init() {
                                      "Nenhuma nova rua, sem salvar, selecionada!","Todos os segmentos de rua estão dentro de um rio. Nada a fazer.",
                                      "Múltiplos segmentos de rua dentro de um rio. Impossível continuar.");
                 break;
+            case "it":      // 2016-06-06: Italian - By savex67
+                langText = new Array("metri","Larghezza","Crea un nuovo segmento, selezionalo (senza salvarlo) e clicca su questo bottone.","Da strada a fiume","Larghezza illimitata (non usare)",
+                                     "Nessun nuovo segmento (non salvato) selezionato","I segmenti selezionati sono già all'interno di un fiume. Non puoi continuare.",
+                                     "I segmenti selezionati sono in parte già all'interno di un fiume. Non puoi continuare.");
+                break;
             default:        // 2014-06-05: English
                 langText = new Array("meters","Width","Create a new street, select and click this button.","Street to River","Unlimited size (unsafe)",
                                      "No unsaved and selected new street found!","All street segments inside river. Cannot continue.",
@@ -715,3 +720,4 @@ function streetToRiver_init() {
 }
 //debugger;
 streetToRiver_bootstrap();
+
