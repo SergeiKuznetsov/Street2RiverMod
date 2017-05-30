@@ -3,7 +3,7 @@
 // @description     This script create a new river landmark in waze map editor (WME). It transforms the the geometry of a new unsaved street to a polygon.
 // @namespace       https://greasyfork.org/scripts/1879-wme-street-to-river-plus
 // @grant           none
-// @version         16.06.15
+// @version         16.06.20
 // @include         https://www.waze.com/editor/*
 // @include         https://www.waze.com/*/editor/*
 // @include         https://editor-beta.waze.com/*
@@ -23,7 +23,7 @@
 //
 // Updated by: Eduardo Carvajal
 
-var version = '16.06.15';
+var version = '16.06.20';
 
 var idMeters  = 0;
 var idWidth = 1;
@@ -187,6 +187,7 @@ function streetToRiver_init() {
         var wazeActionUpdateFeatureGeometry = require("Waze/Action/UpdateFeatureGeometry");
         var wazefeatureVectorLandmark = require("Waze/Feature/Vector/Landmark");
         var wazeActionAddLandmark = require("Waze/Action/AddLandmark");
+        var wazeActionDeleteSegment = require("Waze/Action/DeleteSegment");
 
         // 2016-06-10 Remove auto-added city from newly created river
         var UpdateSegmentAddress;
@@ -479,7 +480,13 @@ function streetToRiver_init() {
             //Waze.model.actionManager.add(new Waze.Action.UpdateFeatureGeometry(riverLandmark,Waze.model.landmarks,originalGeometry,riverLandmark.geometry));
             //delete originalGeometry;
         }
-      return true;
+
+        // 2016-06-16: Remove road line - by ruskinz
+        if (sel.isGeometryEditable()){
+            Waze.model.actionManager.add(new wazeActionDeleteSegment(sel));
+        }
+
+        return true;
   }
 
     // 2013-06-02: Returns TRUE if line1 intersects lines2
@@ -704,7 +711,7 @@ function streetToRiver_init() {
                                      "I segmenti selezionati sono in parte già all'interno di un fiume. Non puoi continuare.");
                 break;
             case "sk":      // 2016-06-15: Slovak - By Turrican7
-                langText = new Array("metrov","Šírka","Vytvorte os rieky, označte segment a tlačte toto tlačítko.","Cesta na rieku","Neobmedzená šírka (nebezpečné)",
+                langText = new Array("metrov","Šírka","Vytvorte os rieky, označte segment a stlačte toto tlačítko.","Cesta na rieku","Neobmedzená šírka (nebezpečné)",
                                      "Nebol označený žiadny neuložený segment!","Všetky segmenty sú vo vnútri rieky! Nie je možné pokračovať.",
                                      "Vo vnútri rieky je viacero segmentov! Nie je možné pokračovať.");
                 break;
