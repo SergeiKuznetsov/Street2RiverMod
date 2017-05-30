@@ -23,7 +23,7 @@
 //
 // Updated by: Eduardo Carvajal
 
-var version = '16.05.12';
+var version = '16.05.12.mod';
 
 var idMeters  = 0;
 var idWidth = 1;
@@ -33,38 +33,14 @@ var idUnlimitedSize=4;
 var idNoUsavedStreet=5;
 var idAllSegmentsInside=6;
 var idMultipleSegmentsInside=7;
-
+var idStreetToOther=8;
+var idStreetToForest=9;
+var idDeleteSegment = 10;
 
 function streetToRiver_bootstrap()
 {
-    /*
-    2016-03-30: Romoved for Firefox compatibility
-    var bGreasemonkeyServiceDefined = false;
-
-    try
-    {
-        if ("object" === typeof Components.interfaces.gmIGreasemonkeyService)
-        {
-            bGreasemonkeyServiceDefined = true;
-        }
-    }
-    catch (err)
-    {
-        //Ignore.
-    }
-    if ( "undefined" === typeof unsafeWindow  ||  ! bGreasemonkeyServiceDefined)
-    {
-        unsafeWindow    = ( function ()
-        {
-            var dummyElem   = document.createElement('p');
-            dummyElem.setAttribute ('onclick', 'return window;');
-            return dummyElem.onclick ();
-        } ) ();
-    }
-    */
     /* begin running the code! */
     setTimeout(streetToRiver_init,999);
-    //window.setTimeout(streetToRiver_init,500);
 }
 
 
@@ -73,9 +49,27 @@ function streetToRiver_bootstrap()
 // 2014-01-09: Add new controls to Waze Editors.
 function streetToRiver_init() {
 
-    var defaultWidth = 20;
+    var defaultWidth = 15;
     var scriptLanguage = "us";
     var langText;
+
+    {
+        var Config =[
+            {handler: 'WME-Street-to-River_other',    title: "Other",     func:function(ev){doPOI(ev,"OTHER")}, key:-1, arg:{type:"OTHER"}},
+        ];
+
+        for(var i=0; i < Config.length; ++i)
+        {
+            WMEKSRegisterKeyboardShortcut('WME-Street-to-River', 'WME-Street-to-River', Config[i].handler, Config[i].title, Config[i].func, Config[i].key, Config[i].arg);
+        }
+
+        WMEKSLoadKeyboardShortcuts('WME-Street-to-River');
+
+        window.addEventListener("beforeunload", function() {
+            WMEKSSaveKeyboardShortcuts('WME-Street-to-River');
+        }, false);
+
+    }
 
     function insertButtons() {
 
@@ -89,8 +83,14 @@ function streetToRiver_init() {
 
 
         // 2014-01-09: Add Create River and Create Railway buttons
+        var btn0 = $('<button class="btn btn-primary" title="' + getString(idTitle) + '">' + getString(idStreetToOther) + '</button>');
+        btn0.click(doOther);
+
         var btn1 = $('<button class="btn btn-primary" title="' + getString(idTitle) + '">' + getString(idStreetToRiver) + '</button>');
         btn1.click(doRiver);
+
+        var btn2 = $('<button class="btn btn-primary" title="' + getString(idTitle) + '">' + getString(idStreetToForest) + '</button>');
+        btn2.click(doForest);
 
         var strMeters =  getString(idMeters);
 
@@ -104,10 +104,18 @@ function streetToRiver_init() {
         selRiverWidth.append( $('<option value="25">25 ' + strMeters + '</option>') );
         selRiverWidth.append( $('<option value="30">30 ' + strMeters + '</option>') );
         selRiverWidth.append( $('<option value="40">40 ' + strMeters + '</option>') );
+        selRiverWidth.append( $('<option value="50">50 ' + strMeters + '</option>') );
+        selRiverWidth.append( $('<option value="80">80 ' + strMeters + '</option>') );
+        selRiverWidth.append( $('<option value="100">100 ' + strMeters + '</option>') );
+        selRiverWidth.append( $('<option value="120">120 ' + strMeters + '</option>') );
+        selRiverWidth.append( $('<option value="150">150 ' + strMeters + '</option>') );
+        selRiverWidth.append( $('<option value="180">180 ' + strMeters + '</option>') );
+        selRiverWidth.append( $('<option value="200">200 ' + strMeters + '</option>') );
 
 
         // 2014-01-09: Add Unlimited size river with checkbox
-        var chk = $('<label class="checkbox"><input type="checkbox" id="_isUnlimitedSize">' + getString(idUnlimitedSize) + '</label>');
+        var chk = $('<label class="checkbox"><input title="Неограниченная длина (небезопасно)" type="checkbox" id="_isUnlimitedSize">' + getString(idUnlimitedSize) + '</label>');
+        var chkDel = $('<label class="checkbox"><input type="checkbox" id="_isDeleteSegment">' + getString(idDeleteSegment) + '</label>');
 
 
         // 2014-01-09: Add streetToRiver section with new HTML controls
@@ -115,18 +123,20 @@ function streetToRiver_init() {
 
         // 2014-01-09: Add River width to section
         var divGroup1 = $('<div class="form-group" />');
-        divGroup1.append( $('<label class="col-xs-4">' + getString(idWidth) + ':</label>') );
-        var divControls1 = $('<div class="col-xs-8 controls" />');
+        divGroup1.append( $('<label class="control-label">' + getString(idWidth) + ':</label>') );
+        var divControls1 = $('<div class="controls" />');
         divControls1.append(selRiverWidth);
         divControls1.append(chk);
+        divControls1.append(chkDel);
         divGroup1.append(divControls1);
         cnt.append(divGroup1);
 
         // 2014-01-09: Add river buttons to section
         var divGroup2 = $('<div class="form-group"/>');
-        divGroup2.append( $('<label class="col-xs-4">&nbsp;</label>') );
-        var divControls2 = $('<div class="col-xs-8 controls" />');
+        var divControls2 = $('<div class="controls" />');
+        divControls2.append(btn0);
         divControls2.append(btn1);
+        divControls2.append(btn2);
         divGroup2.append(divControls2);
         cnt.append(divGroup2);
 
@@ -139,7 +149,7 @@ function streetToRiver_init() {
 
 
         // 2013-06-09: Select last river width
-        var lastRiverWidth = getLastRiverWidth(20);
+        var lastRiverWidth = getLastRiverWidth(15);
         console_log("Last river width: " + lastRiverWidth);
         selRiverWidth = document.getElementById('riverWidth');
         if(selRiverWidth!==null){
@@ -157,6 +167,10 @@ function streetToRiver_init() {
             isUnlimitedSize.checked = getLastIsUnlimitedSize(false);
         }
 
+        var isDeleteSegment = document.getElementById('_isDeleteSegment')
+        if(isDeleteSegment!=null){
+            isDeleteSegment.checked = getLastIsDeleteSegment(true);
+        }
 
         console_log("Street to River Language: " + scriptLanguage);
         console_log("Street to river PLUS initialized");
@@ -164,7 +178,7 @@ function streetToRiver_init() {
 
 
     // 2014-01-09: Process River Button
-    function doRiver(ev) {
+    function doPOI(ev,typ) {
         var convertOK;
         var foundSelectedSegment = false;
 
@@ -179,14 +193,21 @@ function streetToRiver_init() {
         var isUnlimitedSize = document.getElementById('_isUnlimitedSize');
         setLastIsUnlimitedSize(isUnlimitedSize.checked);
 
+        var isDeleteSegment = document.getElementById('_isDeleteSegment');
+        setLastIsDeleteSegment(isDeleteSegment.checked);
 
         // 2014-01-09: Search for helper street. If found create or expand a river
         for (var s=Waze.selectionManager.selectedItems.length-1; s>=0; s--) {
             var sel = Waze.selectionManager.selectedItems[s].model;
-            if (sel.type == "segment" && sel.state == "Insert") {
+            if (sel.type == "segment") {
                 // found segment
                 foundSelectedSegment = true;
-                convertOK = convertToLandmark(sel, "H3010",isUnlimitedSize.checked);
+                convertOK = convertToLandmark(sel, typ, isUnlimitedSize.checked);
+                if(isDeleteSegment.checked)
+                {
+                  var wazeActionDeleteSegment = require("Waze/Action/DeleteSegment")
+                  Waze.model.actionManager.add(new wazeActionDeleteSegment(sel));
+                }
             }
         }
         if (! foundSelectedSegment) {
@@ -195,6 +216,16 @@ function streetToRiver_init() {
 
     }
 
+    function doRiver(ev) {
+        doPOI(ev,"RIVER_STREAM");
+    }
+
+    function doForest(ev) {
+        doPOI(ev,"FOREST_GROVE")
+    }
+    function doOther(ev) {
+        doPOI(ev,"OTHER")
+    }
 
     // 2014-01-09: Base on selected helper street creates or expand an existing river/railway
     function convertToLandmark(sel, lmtype,isUnlimitedSize) {
@@ -204,6 +235,35 @@ function streetToRiver_init() {
         var street = getStreet(sel);
 
         var displacement = getDisplacement(street);
+
+        // create place with a minimum area 560m2
+        // for simple segments only (A-B)
+        if (sel.geometry.components.length === 2) {
+            var segLength = 0;
+            var minArea = 560;
+            var pt = [];
+            pt[0] = sel.geometry.components[0];
+            pt[1] = sel.geometry.components[1];
+
+            var seg = new OpenLayers.Geometry.LineString(pt);
+            segLength = seg.getGeodesicLength(Waze.map.getProjectionObject());
+
+            // if small area is expected
+            if (minArea/displacement > segLength) {
+                if (segLength <= Math.sqrt(minArea)) {
+                    // create a minimum square
+                    line = Math.sqrt(minArea);
+                    segScale = line/segLength;
+                    displacement = line/1.18;
+                    pt[1].resize(segScale, pt[0], 1);
+                }
+                else {
+                    // adjust displacement (width)
+                    displacement = minArea/segLength;
+                }
+            }
+        }
+
         var streetVertices = sel.geometry.getVertices();
         var polyPoints = null;
         var firstPolyPoint = null;
@@ -212,6 +272,8 @@ function streetToRiver_init() {
         var wazeActionUpdateFeatureGeometry = require("Waze/Action/UpdateFeatureGeometry");
         var wazefeatureVectorLandmark = require("Waze/Feature/Vector/Landmark");
         var wazeActionAddLandmark = require("Waze/Action/AddLandmark");
+        var wazeActionDeleteObject = require("Waze/Action/DeleteObject");
+        var wazeActionUpdateFeatureAddress = require("Waze/Action/UpdateFeatureAddress");
 
         //streetVertices = sel.attributes.geometry.getVertices();
 
@@ -222,22 +284,29 @@ function streetToRiver_init() {
         var riverLandmark=null;
         var repo = Waze.model.venues;
 
+        var rrr, donorLandmark=null;
         for (var t in repo.objects)
         {
             riverLandmark =  repo.objects[t];
 
-            if (riverLandmark.attributes.categories[0] === 'RIVER_STREAM')
+            if (riverLandmark.attributes.categories[0] === lmtype)
             {
 
                 // 2014-06-27: Veriy if the landkmark object has containsPoint function
                 if ("function" === typeof riverLandmark.geometry.containsPoint){
                     if(riverLandmark.geometry.containsPoint(streetVertices[0])){
                         bAddNew = false;    // Street is inside an existing river
-                        break;
+                        rrr=riverLandmark;
                     }
+                    if(riverLandmark.geometry.containsPoint(streetVertices[streetVertices.length-1])){
+
+                        donorLandmark=riverLandmark;
+                    }
+
                 }
             }
         }
+        riverLandmark=rrr;
 
         // 2013-10-13: Ignore vertices inside river
         var bIsOneVerticeStreet = false;
@@ -360,19 +429,173 @@ function streetToRiver_init() {
             // 2014-10-08: Creates river's Landmark
             riverLandmark = new wazefeatureVectorLandmark();
             riverLandmark.geometry = polygon;
-            riverLandmark.attributes.categories = ["RIVER_STREAM"];
+            riverLandmark.attributes.categories.push(lmtype);
 
             // 2014-01-09: Add river's name base on Street Name
-            if (street) {
+            if (street && street.name) {
                 riverLandmark.attributes.name = street.name.replace(/^\d+(m|ft)\s*/, '');
             }
 
             // 2014-10-08: Add new Landmark to Waze Editor
-            Waze.model.actionManager.add(new wazeActionAddLandmark(riverLandmark));
+            var riverLandmark_o=new wazeActionAddLandmark(riverLandmark)
+            Waze.model.actionManager.add(riverLandmark_o);
+            Waze.selectionManager.select([riverLandmark_o.landmark]);
+
+            if (lmtype !== "OTHER")
+            {
+                console.log("bAddNew");
+                var address=riverLandmark.getAddress().attributes;
+                console.log(address);
+                var newAddressAtts={streetName: null, emptyStreet: true, cityName: null, emptyCity: true, stateID: address.state.id, countryID: address.country.id};
+                Waze.model.actionManager.add(new wazeActionUpdateFeatureAddress(riverLandmark, newAddressAtts, {streetIDField: 'streetID'} ));
+            }
+
         }
         else{
+            function CalcRL(components)
+            {
+                var count=components.length;
+                var j=count-1;
+                var area=0;
+
+                for(var i=0; i < count; ++i)
+                {
+                    area+=(components[i].y*components[j].x)-(components[i].x*components[j].y);
+                    j=i;
+                }
+                return area < 0?1:-1; // 1 - по часовой, -1 - против часовой
+            }
+
             // 2014-01-09: Expand an existing river
             var originalGeometry = riverLandmark.geometry.clone();
+
+            if(donorLandmark) // если есть донор
+            {
+                var undoGeometry = riverLandmark.geometry.clone();
+                var undoGeometryDonor = donorLandmark.geometry.clone();
+                var components=riverLandmark.geometry.components[0].components;
+                var componentsDonor=donorLandmark.geometry.components[0].components;
+
+//window.donorLandmark=donorLandmark;
+//window.riverLandmark=riverLandmark;
+
+                // куда закручен массив?
+                var componentsRL=CalcRL(components);
+                var componentsDonorRL=CalcRL(componentsDonor);
+console.log("src="+componentsRL+", donor="+componentsDonorRL);
+                // найти индекс ближайщей точки к началу сегмента
+                var dist=1000000000;
+                var p1=[0,0], p2=[0,0]; // индексы ближайших точек
+                for (var i1=0; i1< components.length; i1++)
+                {
+                    var d1=Math.sqrt(Math.pow(Math.abs(components[i1].x - streetVertices[0].x),2)+Math.pow(Math.abs(components[i1].y - streetVertices[0].y),2));
+                    if(d1 < dist)
+                    {
+                        dist=d1;
+                        p1[0]=i1;
+                        if (componentsRL > 0)
+                            p1[1]=i1 === 0?components.length-1:i1-1;
+                        else
+                            p1[1]=i1 == components.length-1?0:i1+1;
+                    }
+                }
+
+console.log("p1="+p1+", dist="+dist);
+                // ищем индекс во втором ПОИ, откуда начинать вставку.
+                dist=1000000000;
+                for (var i1=0; i1< componentsDonor.length; i1++)
+                {
+                    var d1=Math.sqrt(Math.pow(Math.abs(componentsDonor[i1].x - streetVertices[streetVertices.length-1].x),2)+Math.pow(Math.abs(componentsDonor[i1].y - streetVertices[streetVertices.length-1].y),2));
+                    if(d1 < dist)
+                    {
+                        dist=d1;
+                        p2[0]=i1;
+                        if (componentsDonorRL > 0)
+                            p2[1]=i1 === 0?componentsDonor.length-1:i1-1;
+                        else
+                            p2[1]=i1 == componentsDonor.length-1?0:i1+1;
+                    }
+                }
+console.log("p2="+p2+", dist="+dist);
+
+//window.components=components
+
+                var componentsNew=components.clone();
+                componentsNew.length=0;
+
+
+                // добавляем источник
+                for(var i1=0; i1 <= p1[0]; ++i1)
+                    componentsNew.push(components[i1]);
+
+
+                // добавляем донора
+                if (componentsRL < 0)
+                {
+                    if (componentsDonorRL < 0)
+                    {
+                        // добавляем донора по кругу
+                        for(var i1=p2[0]; i1 < componentsDonor.length; ++i1)
+                            componentsNew.push(componentsDonor[i1]);
+
+                        // ...остаток донора
+                        for(var i1=0; i1 < p2[0]; ++i1)
+                            componentsNew.push(componentsDonor[i1]);
+                    }
+                    else
+                    {
+                        // добавляем донора по кругу
+                        for(var i1=p2[0]; i1 >= 0; --i1)
+                            componentsNew.push(componentsDonor[i1]);
+
+                        // ...остаток донора
+                        for(var i1=componentsDonor.length-1; i1 > p2[0]; --i1)
+                            componentsNew.push(componentsDonor[i1]);
+                    }
+                }
+                else
+                {
+                    if (componentsDonorRL < 0)
+                    {
+                        // добавляем донора по кругу
+                        for(var i1=p2[0]; i1 >= 0; --i1)
+                            componentsNew.push(componentsDonor[i1]);
+
+                        // ...остаток донора
+                        for(var i1=componentsDonor.length-1; i1 > p2[0]; --i1)
+                            componentsNew.push(componentsDonor[i1]);
+                    }
+                    else
+                    {
+                        // добавляем донора по кругу
+                        for(var i1=p2[0]; i1 < componentsDonor.length; ++i1)
+                            componentsNew.push(componentsDonor[i1]);
+
+                        // ...остаток донора
+                        for(var i1=0; i1 < p2[0]; ++i1)
+                            componentsNew.push(componentsDonor[i1]);
+                    }
+                }
+
+                // добавляем источник
+                for(var i1=p1[0]+1; i1 < components.length; ++i1)
+                    componentsNew.push(components[i1]);
+
+//window.componentsNew=componentsNew
+                // обновляемся
+                function uniq(a) {
+                    var seen = {};
+                    return a.filter(function(item) {
+                        return seen.hasOwnProperty(item) ? false : (seen[item] = true);
+                    });
+                };
+                riverLandmark.geometry.components[0].components=uniq(componentsNew);
+
+                Waze.model.actionManager.add(new wazeActionUpdateFeatureGeometry(riverLandmark, Waze.model.venues,undoGeometry,riverLandmark.geometry));
+                Waze.model.actionManager.add(new wazeActionDeleteObject(donorLandmark, Waze.model.venues,undoGeometryDonor,donorLandmark.geometry));
+
+                return true;
+            }
             var riverVertices = riverLandmark.geometry.getVertices();
             console_log("Total river vertices:" + riverVertices.length);
 
@@ -468,6 +691,16 @@ function streetToRiver_init() {
             // 2013-06-03: Notify Waze that current river's geometry change.
             //Waze.model.actionManager.add(new Waze.Action.UpdateFeatureGeometry(riverLandmark,Waze.model.landmarks,originalGeometry,riverLandmark.geometry));
             //delete originalGeometry;
+
+            if (lmtype !== "OTHER")
+            {
+                console.log("!bAddNew");
+                var address=riverLandmark.getAddress().attributes;
+                console.log(address);
+                var newAddressAtts={streetName: null, emptyStreet: true, cityName: null, emptyCity: true, stateID: address.state.id, countryID: address.country.id};
+                Waze.model.actionManager.add(new wazeActionUpdateFeatureAddress(riverLandmark, newAddressAtts, {streetIDField: 'streetID'} ));
+            }
+
         }
       return true;
   }
@@ -563,6 +796,8 @@ function streetToRiver_init() {
     function getDisplacement(street) {
         if (!street)
             return defaultWidth;
+        if (!street.name)
+            return defaultWidth;
         if (street.name.match(/^(\d+)m\b/))
             return parseInt(RegExp.$1);
         if (street.name.match(/^(\d+)ft\b/))
@@ -624,6 +859,33 @@ function streetToRiver_init() {
          }
     }
 
+    // 2013-10-20: Save current unlimited size preference
+    function setLastIsDeleteSegment(isDeleteSegment){
+        if(typeof(Storage)!=="undefined"){
+            // 2013-06-09: Yes! localStorage and sessionStorage support!
+            sessionStorage.isDeleteSegment=Number(isDeleteSegment)
+         }
+         else{
+           // Sorry! No web storage support..
+           console_log("No web storage support");
+         }
+    }
+
+    // 2013-10-20: Returns last saved unlimite size preference
+    function getLastIsDeleteSegment(defaultValue){
+        if(typeof(Storage)!=="undefined"){
+            // 2013-10-20: Yes! localStorage and sessionStorage support!
+            if(sessionStorage.isDeleteSegment)
+                return Number(sessionStorage.isDeleteSegment);
+            else
+                return Number(defaultValue);    // Default preference
+         }
+         else{
+           // Sorry! No web storage support..
+           return Number(defaultValue); // Default preference
+         }
+    }
+
     // 2014-06-05: Returns WME interface language
     function getLanguage(){
         var wmeLanguage;
@@ -656,42 +918,42 @@ function streetToRiver_init() {
             case "es-419":
                 langText = new Array("metros","Ancho","Cree una nueva calle, selecciónela y oprima este botón.","Calle a Río","Tamaño ilimitado",
                                      "¡No se encontró una calle sin guardar!","Todos los segmentos de la calle adentro del río. No se puede continuar.",
-                                     "Múltiples segmentos de la calle dentro del río. No se puede continuar");
+                                     "Múltiples segmentos de la calle dentro del río. No se puede continuar","Other","Forest","Delete segment");
                 break;
             case "fr":      // 2014-06-05: French
                 langText = new Array("mètres","Largura","Crie uma nova rua, a selecione e clique neste botão.","Rue á rivière","Taille illimitée (dangereux)",
                                      "Pas de nouvelle rue non enregistré trouvée!","Tous les segments de la rue dans la rivière. Vous ne pouvez pas continuer.",
-                                     "Plusieurs segments de rues à l'intérieur de la rivière. Vous ne pouvez pas continuer.");
+                                     "Plusieurs segments de rues à l'intérieur de la rivière. Vous ne pouvez pas continuer.","Other","Forest","Delete segment");
                 break;
             case "ru":      // 2014-06-05: Russian
-                langText = new Array("метров","Ширина","Создайте новую дорогу (не сохраняйте), выберите ее и нажмите эту кнопку.","Дорога в реку","Неограниченная длина (небезопасно)",
+                langText = new Array("метров","Ширина","Создайте новую дорогу (не сохраняйте), выберите ее и нажмите эту кнопку.","Река","Вся длина",
                                      "Не выделено ни одной не сохранённой дороги!","Все сегменты дороги находятся внутри реки. Преобразование невозможно.",
-                                     "Слишком много сегментов дороги находится внутри реки. Преобразование невозможно.");
+                                     "Слишком много сегментов дороги находится внутри реки. Преобразование невозможно.","Контур","Лес","Удалить сегмент");
                 break;
             case "hu":      // 2014-07-02: Hungarian
                 langText = new Array("méter","Szélesség","Hozzon létre egy új utcát, válassza ki, majd kattintson erre a gombra.","Utcából folyó","Korlátlan méretű (nem biztonságos)",
                                      "Nem található nem mentett és kiválasztott új utca!","Az útszakasz a folyón belül található! Nem lehet folytatni.",
-                                     "Minden útszakasz a folyón belül található! Nem lehet folytatni.");
+                                     "Minden útszakasz a folyón belül található! Nem lehet folytatni.","Other","Forest","Delete segment");
                 break;
             case "cs":      // 2014-07-03: Czech
                 langText = new Array("metrů","Šířka","Vytvořte osu řeky, vyberte segment a stiskněte toto tlačítko.","Silnice na řeku","Neomezená šířka (nebezpečné)",
                                      "Nebyly vybrány žádné neuložené segmenty!","Všechny segmenty jsou uvnitř řeky! Nelze pokračovat.",
-                                     "Uvnitř řeky je více segmentů! Nelze pokračovat.");
+                                     "Uvnitř řeky je více segmentů! Nelze pokračovat.","Other","Forest","Delete segment");
                 break;
             case "pl":      // 2014-11-08: Polish - By Zniwek
                 langText = new Array("metrów","Szerokość","Stwórz ulicę, wybierz ją i kliknij ten przycisk.","Ulica w Rzekę","Nieskończony rozmiar (niebezpieczne)",
                                      "Nie znaleziono nowej i niezapisanej ulicy!","Wszystkie segmenty ulicy wewnątrz rzeki. Nie mogę kontynuować.",
-                                     "Wiele segmentów ulicy wewnątrz rzeki. Nie mogę kontynuować.");
+                                     "Wiele segmentów ulicy wewnątrz rzeki. Nie mogę kontynuować.","Other","Forest","Delete segment");
                 break;
             case "pt-br":// 2015-04-05: Portuguese - By esmota
                 langText = new Array("metros","Largura","Criar uma nova rua, selecione e clique neste botão.","Rua para Rio","Comprimento ilimitado (instável)",
                                      "Nenhuma nova rua, sem salvar, selecionada!","Todos os segmentos de rua estão dentro de um rio. Nada a fazer.",
-                                     "Múltiplos segmentos de rua dentro de um rio. Impossível continuar.");
+                                     "Múltiplos segmentos de rua dentro de um rio. Impossível continuar.","Other","Forest","Delete segment");
                 break;
             default:        // 2014-06-05: English
                 langText = new Array("meters","Width","Create a new street, select and click this button.","Street to River","Unlimited size (unsafe)",
                                      "No unsaved and selected new street found!","All street segments inside river. Cannot continue.",
-                                     "Multiple street segments inside river. Cannot continue.");
+                                     "Multiple street segments inside river. Cannot continue.","Other","Forest","Delete segment");
         }
     }
 
@@ -713,5 +975,29 @@ function streetToRiver_init() {
     Waze.selectionManager.events.register("selectionchanged", null, insertButtons);
 
 }
-//debugger;
+
+function RequeryPatch() {if(typeof require !== "undefined")return; var WMEAPI={};for(WMEAPI.scripts=document.getElementsByTagName("script"),WMEAPI.url=null,i=0;i<WMEAPI.scripts.length;i++)if(WMEAPI.scripts[i].src.indexOf("/assets-editor/js/app")!=-1){WMEAPI.url=WMEAPI.scripts[i].src;break}if(null==WMEAPI.url)throw new Error("WME Hack: can't detect WME main JS");WMEAPI.require=function(a){return WMEAPI.require.define.modules.hasOwnProperty(a)?WMEAPI.require.define.modules[a]:(console.error("Require failed on "+a,WMEAPI.require.define.modules),null)},WMEAPI.require.define=function(a){0==WMEAPI.require.define.hasOwnProperty("modules")&&(WMEAPI.require.define.modules={});for(var b in a)WMEAPI.require.define.modules[b]=a[b]},WMEAPI.tmp=window.webpackJsonp,WMEAPI.t=function(a){if(WMEAPI.s[a])return WMEAPI.s[a].exports;var b=WMEAPI.s[a]={exports:{},id:a,loaded:!1};return WMEAPI.e[a].call(b.exports,b,b.exports,WMEAPI.t),b.loaded=!0,b.exports},WMEAPI.e=[],window.webpackJsonp=function(a,b){for(var d,e,c={},f=0,g=[];f<a.length;f++)e=a[f],WMEAPI.r[e]&&g.push.apply(g,WMEAPI.r[e]),WMEAPI.r[e]=0;var i,j,h=0;for(d in b)WMEAPI.e[d]=b[d],j=b[d].toString(),i=j.match(/CLASS_NAME:\"([^\"]*)\"/),i?c[i[1].replace(/\./g,"/").replace(/^W\//,"Waze/")]={index:d,func:WMEAPI.e[d]}:(c["Waze/Unknown/"+h]={index:d,func:WMEAPI.e[d]},h++);for(;g.length;)g.shift().call(null,WMEAPI.t);WMEAPI.s[0]=0;var l,k={};h=0;for(d in b)if(j=b[d].toString(),i=j.match(/CLASS_NAME:\"([^\"]*)\"/))k={},l=i[1].replace(/\./g,"/").replace(/^W\//,"Waze/"),k[l]=WMEAPI.t(c[l].index),WMEAPI.require.define(k);else{var m=j.match(/SEGMENT:"segment",/);m&&(k={},l="Waze/Model/ObjectType",k[l]=WMEAPI.t(c["Waze/Unknown/"+h].index),WMEAPI.require.define(k)),h++}window.webpackJsonp=WMEAPI.tmp,window.require=WMEAPI.require},WMEAPI.s={},WMEAPI.r={0:0},WMEAPI.WMEHACK_Injected_script=document.createElement("script"),WMEAPI.WMEHACK_Injected_script.setAttribute("type","application/javascript"),WMEAPI.WMEHACK_Injected_script.src=WMEAPI.url,document.body.appendChild(WMEAPI.WMEHACK_Injected_script);}
+var RPscript = document.createElement("script");
+RPscript.textContent =  RequeryPatch.toString() + ';\n' + 'RequeryPatch();';
+RPscript.setAttribute("type", "application/javascript");
+document.body.appendChild(RPscript);
+
 streetToRiver_bootstrap();
+
+
+
+// from: https://greasyfork.org/ru/scripts/16071-wme-keyboard-shortcuts (modify)
+/*
+when adding shortcuts each shortcut will need a uniuque name
+the command to add links is WMERegisterKeyboardShortcut(ScriptName, ShortcutsHeader, NewShortcut, ShortcutDescription, FunctionToCall, ShortcutKeysObj) {
+    ScriptName: This is the name of your script used to track all of your shortcuts on load and save.
+    ScriptName: replace 'WMEAwesome' with your scripts name such as 'SomeOtherScript'
+    ShortcutsHeader: this is the header that will show up in the keyboard editor
+    NewShortcut: This is the name of the shortcut and needs to be uniuque from all of the other shortcuts, from other scripts, and WME
+    ShortcutDescription: This wil show up as the text next to your shortcut
+    FunctionToCall: this is the name of your function that will be called when the keyboard shortcut is presses
+    ShortcutKeysObj: the is the object representing the keys watched set this to '-1' to let the users specify their own shortcuts.
+    ShortcutKeysObj: The alt, shift, and ctrl keys are A=alt, S=shift, C=ctrl. for short cut to use "alt shift ctrl and l" the object would be 'ASC+l'
+*/
+function WMEKSRegisterKeyboardShortcut(a,b,c,d,e,f,g){try{I18n.translations[I18n.locale].keyboard_shortcuts.groups[a].members.length}catch(c){Waze.accelerators.Groups[a]=[],Waze.accelerators.Groups[a].members=[],I18n.translations[I18n.locale].keyboard_shortcuts.groups[a]=[],I18n.translations[I18n.locale].keyboard_shortcuts.groups[a].description=b,I18n.translations[I18n.locale].keyboard_shortcuts.groups[a].members=[]}if(e&&"function"==typeof e){I18n.translations[I18n.locale].keyboard_shortcuts.groups[a].members[c]=d,Waze.accelerators.addAction(c,{group:a});var i="-1",j={};j[i]=c,Waze.accelerators._registerShortcuts(j),null!==f&&(j={},j[f]=c,Waze.accelerators._registerShortcuts(j)),W.accelerators.events.register(c,null,function(){e(g)})}else alert("The function "+e+" has not been declared")}function WMEKSLoadKeyboardShortcuts(a){if(console.log("WMEKSLoadKeyboardShortcuts("+a+")"),localStorage[a+"KBS"])for(var b=JSON.parse(localStorage[a+"KBS"]),c=0;c<b.length;c++)try{Waze.accelerators._registerShortcuts(b[c])}catch(a){console.log(a)}}function WMEKSSaveKeyboardShortcuts(a){console.log("WMEKSSaveKeyboardShortcuts("+a+")");var b=[];for(var c in Waze.accelerators.Actions){var d="";if(Waze.accelerators.Actions[c].group==a){Waze.accelerators.Actions[c].shortcut?(Waze.accelerators.Actions[c].shortcut.altKey===!0&&(d+="A"),Waze.accelerators.Actions[c].shortcut.shiftKey===!0&&(d+="S"),Waze.accelerators.Actions[c].shortcut.ctrlKey===!0&&(d+="C"),""!==d&&(d+="+"),Waze.accelerators.Actions[c].shortcut.keyCode&&(d+=Waze.accelerators.Actions[c].shortcut.keyCode)):d="-1";var e={};e[d]=Waze.accelerators.Actions[c].id,b[b.length]=e}}localStorage[a+"KBS"]=JSON.stringify(b)}
+/* ********************************************************** */
