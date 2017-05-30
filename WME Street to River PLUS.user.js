@@ -3,7 +3,7 @@
 // @description     This script create a new river landmark in waze map editor (WME). It transforms the the geometry of a new unsaved street to a polygon.
 // @namespace       https://greasyfork.org/scripts/1879-wme-street-to-river-plus
 // @grant           none
-// @version         16.06.08
+// @version         16.06.11
 // @include         https://www.waze.com/editor/*
 // @include         https://www.waze.com/*/editor/*
 // @include         https://editor-beta.waze.com/*
@@ -23,7 +23,7 @@
 //
 // Updated by: Eduardo Carvajal
 
-var version = '16.06.08';
+var version = '16.06.11';
 
 var idMeters  = 0;
 var idWidth = 1;
@@ -188,6 +188,15 @@ function streetToRiver_init() {
         var wazefeatureVectorLandmark = require("Waze/Feature/Vector/Landmark");
         var wazeActionAddLandmark = require("Waze/Action/AddLandmark");
 
+        // 2016-06-10 Remove auto-added city from newly created river
+        var UpdateSegmentAddress;
+        try {
+            UpdateSegmentAddress = require("Waze/Action/UpdateSegmentAddress");
+        } catch (e) {}
+        if (typeof(UpdateSegmentAddress) != "function") {
+            UpdateSegmentAddress = require("Waze/Action/UpdateFeatureAddress");
+        }
+
         //streetVertices = sel.attributes.geometry.getVertices();
 
         console_log("Street vertices: "+streetVertices.length);
@@ -344,6 +353,32 @@ function streetToRiver_init() {
 
             // 2014-10-08: Add new Landmark to Waze Editor
             Waze.model.actionManager.add(new wazeActionAddLandmark(riverLandmark));
+
+
+            // 2016-06-10: Remove auto-added city from newly created river - by ruskinz
+            var newRiver;
+            for (var objs in repo.objects)
+            {
+                var currentId = 0;
+                var segment = repo.objects[objs];
+                if (segment.attributes.categories[0] === 'RIVER_STREAM' && segment.attributes.id <= -100)
+                {
+                    if (segment.attributes.id < currentId){
+                        currentId = segment.attributes.id;
+                        newRiver = segment;
+                    }
+                }
+            }
+            var riverStreet = newRiver.model.streets.get(newRiver.attributes.streetID);
+            if (riverStreet !== null) {
+                var cityId = riverStreet.cityID;
+                if (cityId !== null) {
+                    var city = Waze.model.cities.get(cityId);
+                    if (newRiver.isGeometryEditable()){
+                        Waze.model.actionManager.add(new UpdateSegmentAddress(newRiver, {countryID: city.countryID, stateID: city.stateID, emptyCity: true, emptyStreet: true}));
+                    }
+                }
+            }
         }
         else{
             // 2014-01-09: Expand an existing river
